@@ -1,8 +1,8 @@
-# dash-clinical-analytics
+# Georgia Election Map
 
 ## About this app
 
-This dashboard allows you to explore clinic patient volume by time of the day, waiting time and care score. Drill down into high-volume days to view how the busy environment may have affected patient experience.
+This dashboard allows you to axplore Georgia election results by contest, year, and value. Click on the heatmap to visualize turnout in different counties.
 
 ## Requirements
 
@@ -10,34 +10,15 @@ This dashboard allows you to explore clinic patient volume by time of the day, w
 
 ## How to run this app
 
-We suggest you to create a virtual environment for running this app with Python 3. Clone this repository 
-and open your terminal/command prompt in the root folder.
+```
+pip install plotly plotly-geo geopandas pyshp shapely dash dash-html-components dash-core-components
+python3 app.py
 
-```
-git clone https://github.com/plotly/dash-sample-apps
-cd dash-sample-apps/apps/dash-clinical-analytics
-python3 -m virtualenv venv
-
-```
-In Unix system:
-```
-source venv/bin/activate
-
-```
-In Windows: 
-
-```
-venv\Scripts\activate
 ```
 
 Install all required packages by running:
 ```
 pip install -r requirements.txt
-```
-
-Run this app locally with:
-```
-python app.py
 ```
 
 ## Screenshot
@@ -47,5 +28,4 @@ python app.py
 ## Resources
 
 * [Dash](https://dash.plot.ly/)
-* Inspired by [Tableau template](https://www.tableau.com/solutions/workbook/improve-patient-satisfaction-improving-cycle-time).
 
