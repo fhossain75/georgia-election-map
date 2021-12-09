@@ -9,6 +9,11 @@ import pandas as pd
 import datetime
 from datetime import datetime as dt
 import pathlib
+import plotly.express as px
+import requests 
+import json
+import plotly.graph_objects as go
+
 
 app = dash.Dash(
     __name__,
@@ -59,8 +64,141 @@ day_list = [
 
 # ------ DELETE EXAMPLE DATA
 
+# ------- API functions 
+def get_results_by_county(sheet_number=2, year = 2016, month = 11, result_column="total_votes"): 
+    """
+    Uses api endpoint to get the total votes aggregated to the county level. 
+    Parameters (all optional): 
+    ------------------------------------------------
+    year (default 2016) - the year of the election
+    month (default 11) - the month of th election
+    sheet_number (default 2) - the contest number of the election
+    result_column (default total_votes) Options [election_day, provisional, absentee_by_mail, advance_in_person, total_votes]   
+    """
+    invoke_url = "https://qp4b96543m.execute-api.us-east-2.amazonaws.com/active"
+    params = {"sheet_number": sheet_number, "year": year, "month": month, "result_column": result_column}
+    response = requests.get(invoke_url + "/get_results", params=params)
+    df = pd.read_json(response.text)
+    
+    return df
+
+def get_turnout_by_county(year=2016, month=11, race=None, gender=None, age_grp=None): 
+    """
+    Uses api endpoint to the turnout by demographic with optional filtering by a single gender, 
+    single race, and/or single age group. 
+    """
+    invoke_url = "https://qp4b96543m.execute-api.us-east-2.amazonaws.com/active"
+    params = {"year": year, "month": month}
+    if race: 
+        params["race"] = race 
+    if gender: 
+        params["gender"] = gender
+    if age_grp: 
+        params["age_grp"] = age_grp
+
+    response = requests.get(invoke_url + "/get_turnout", params=params)
+    return pd.read_json(response.text)
+
+def get_distribution(county_name="Fulton", year=2016, month=11, axis="age_grp", metric="voted"):
+    """
+    Uses api endpoint to get the distribution of the metric by the axis. 
+    """
+    invoke_url = "https://qp4b96543m.execute-api.us-east-2.amazonaws.com/active"
+    params = {"county_name": county_name, "year": year, "month": month, "axis": axis, "metric": metric}
+    response = requests.get(invoke_url + "/get_distribution", params=params)
+    return pd.read_json(response.text)
 
 
+# ------- Get data
+results = get_results_by_county()
+counties = results['county_name']
+
+def state_results():
+	column_list = list(results)
+	column_list.remove("county_name")
+	state_wide = pd.DataFrame({'votes':results[column_list].sum(axis=0)})
+	state_wide.reset_index(inplace=True)
+	state_wide = state_wide.rename(columns = {'index':'Candidate'})
+	fig = px.histogram(state_wide, x="Candidate", y="votes", title="Statewide Results",)
+	fig.update_layout(autosize=True,width=300,height=250,margin=dict(
+        l=50,
+        r=50,
+        b=0,
+        t=30
+    ),paper_bgcolor='rgba(0,0,0,0)',
+    plot_bgcolor='rgba(0,0,0,0)')	
+	return fig
+
+def county_results(county):
+	column_list = list(results)
+	county_results = results[(results['county_name'] == county)]
+	county_results = county_results.T
+	county_results.reset_index(inplace=True)
+	county_results = county_results.rename(columns = {'index':'Candidate'})
+	county_results = county_results.rename(columns = {0:'votes'})
+	county_results = county_results.drop([0])
+	fig = px.histogram(county_results, x="Candidate", y="votes",title="Countywide Results")
+	fig.update_layout(autosize=True,width=300,height=250,margin=dict(
+			l=65,
+			r=50,
+			b=0,
+			t=30
+		),paper_bgcolor='rgba(0,0,0,0)',
+		plot_bgcolor='rgba(0,0,0,0)')
+	return fig
+
+
+def age_histogram(county):
+	df = get_distribution(county)
+	fig = px.histogram(df, x="age_grp", y="voted")
+	fig.update_layout(autosize=True,width=350,height=230,margin=dict(
+        l=50,
+        r=50,
+        b=0,
+        t=10
+    ),)
+	return fig
+
+def gender_histogram(county):
+	df = get_distribution(county, 2016, 11, "gender", metric="voted")
+	fig = px.histogram(df, x="gender", y="voted")
+	fig.update_layout(autosize=True,width=350,height=190,margin=dict(
+        l=50,
+        r=50,
+        b=0,
+        t=10
+    ),)
+	return fig
+
+def race_histogram(county):
+	df = get_distribution(county, 2016, 11, "race", metric="voted")
+	fig = px.histogram(df, x="race", y="voted")
+	fig.update_layout(autosize=True,width=350,height=230,margin=dict(
+        l=50,
+        r=50,
+        b=10,
+        t=10
+    ),)
+	return fig
+
+def graphs(county):
+	"""
+	:return: A div containing graphs
+	"""
+	return html.Div(
+		id="graph-section",
+		children=[
+			html.Div(id="county-select",children=[html.P("Select County"),
+            dcc.Dropdown(
+                options=[{"label": i, "value": i} for i in counties],
+                value=counties[0],
+            ),]),
+			dcc.Graph(figure=age_histogram(county)),
+			dcc.Graph(figure=gender_histogram(county)),
+			dcc.Graph(figure=race_histogram(county)),
+	
+		],
+	)
 
 def description_card():
     """
@@ -69,8 +207,7 @@ def description_card():
     return html.Div(
         id="description-card",
         children=[
-            html.H5("Georgia Election Statistics"),
-            html.H3("Welcome to the Georgia Election Analytics Dashboard"),
+            html.H4("Welcome to the Georgia Election Analytics Dashboard"),
             html.Div(
                 id="intro",
                 children="Explore Georgia election results by contest, year, and value. Click on the heatmap to visualize turnout in different counties.",
@@ -100,13 +237,13 @@ def generate_control_card():
                 value=clinic_list[0],
             ),
             html.Br(),
-            html.Br(),
             html.P("Select Value"),
             dcc.Dropdown(
                 id="value-select",
                 options=[{"label": i, "value": i} for i in clinic_list],
                 value=clinic_list[0],
             ),
+            html.Br(),
             html.Br(),
             html.Div(
                 id="reset-btn-outer",
@@ -144,47 +281,58 @@ def generate_map(contest, year, value):
         exponent_format=True,
     )
     fig.layout.template = None
+    fig.update_layout(autosize=True,width=1000,height=500,)
     
     ##
 
     return fig
 
-
 app.layout = html.Div(
     id="app-container",
     children=[
         # Banner
+        #html.Div(
+            #id="banner",
+            #className="banner",
+            #children=#[html.Img(src=app.get_asset_url("plotly_logo.png"))],
+        #),
+        # Banner (election select)
         html.Div(
-            id="banner",
-            className="banner",
-            children=[html.Img(src=app.get_asset_url("plotly_logo.png"))],
-        ),
-        # Left column
-        html.Div(
-            id="left-column",
+            id="banner2",
             className="four columns",
-            children=[description_card(), generate_control_card()]
+            children=[generate_control_card()]
             + [
                 html.Div(
                     ["initial child"], id="output-clientside", style={"display": "none"}
                 )
             ],
         ),
-        # Right column
+        # Left column
         html.Div(
-            id="right-column",
+            id="left-column",
             className="eight columns",
             children=[
                 # Patient Volume Heatmap
                 html.Div(
                     id="patient_volume_card",
                     children=[
-                        html.B("Georgia Map"),
-                        html.Hr(),
+						html.Div(id="state-wide",children=dcc.Graph(figure=state_results()),),
+						html.Div(id="county-wide",children=dcc.Graph(figure=county_results('Appling')),),
                         dcc.Graph(figure=generate_map(0,0,0)),
-                    ],
+                    ], 
                 ),
             ],            
+        ),
+		# Right column
+        html.Div(
+            id="right-column",
+            className="eight columns",
+            children=[graphs("Appling")]
+            + [
+                html.Div(
+                    ["initial child"], id="graphs", style={"display": "none"}
+                )
+            ],   
         ),
     ],
 )
@@ -201,6 +349,9 @@ app.layout = html.Div(
         Input("reset-btn", "n_clicks"),
     ],
 )
+
+
+
 
 def update_heatmap(start, end, clinic, hm_click, admit_type, reset_click):
     start = start + " 00:00:00"

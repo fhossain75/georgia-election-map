@@ -45,19 +45,83 @@ H5, H3 {
     font-family: Acumin, "Helvetica Neue", sans-serif;
 }
 
-#left-column {
-    margin-top: 20px;
+#right-column {
+	float:right;
+	background-color: white;
     padding: 0rem 2rem;
+	width: 375px;
     display: flex;
     flex-direction: column;
     align-items: center;
     min-height: calc(100vh - 5.5rem);
 }
 
-#right-column {
-    background-color: #f4f4f4;
-    padding: 0rem 2rem;
+#county-select {
+	width: 70%;
+    display: table;
+  	padding-left: 40px;
+	margin-top:0px !important;
+	margin-left: 20px !important;
+}
+
+#county-select > * {
+	display: table-cell;
+	width: 330px;
+	padding-top: 10px;
+	z-index: 2;
+	position: relative;
+}
+
+#graph-section > * {
+	margin-left:40px;
+}
+
+#control-card > * {
+    display: table-cell;
+	width: 330px;
+	padding-top: 10px;
+}
+
+#control-card {
+	width: 70%;
+    display: table;
+  	position: absolute;
+  	left: 0px;
+    padding-left: 30px;
+}
+
+#reset-btn-outer {
+	text-align: right;
+	width: 130px;
+	padding-right: 10px;
+}
+
+#left-column {
+	position: absolute; 
+	display: flex;
+    flex-direction: column;
+    align-items: center;
     min-height: calc(100vh - 5.5rem);
+	margin-top: 75px;
+	left: 0;  
+	width: 70%;
+}
+
+#state-wide {
+	position:absolute;
+	top: 260px;
+	left: 15px;
+	z-index: 3;
+}
+#state-data {
+	position:static;
+	z-index: 1;
+}
+#county-wide {
+	position:absolute;
+	top: 260px;
+	right: 15px;
+	z-index: 3;
 }
 
 .table-row {
@@ -83,12 +147,13 @@ H5, H3 {
 
 #control-card > p {
     font-weight: bold;
+	text-align: right;
+	padding-right: 5px;
+	width: 170px;
 }
 
 #patient_volume_card, #wait_time_card {
-    background-color: #FFFFFF;
-    padding: 1rem;
-    margin: auto;
+    margin: 20px;
     margin-top: 20px;
 }
 
@@ -121,6 +186,9 @@ H5, H3 {
     display: table-cell;
     vertical-align: middle;
 }
+
+
+
 
 
 /*
