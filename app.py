@@ -1,3 +1,4 @@
+#Imports
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -14,7 +15,7 @@ import requests
 import json
 import plotly.graph_objects as go
 
-
+#Declare Dash App
 app = dash.Dash(
     __name__,
     meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
@@ -24,47 +25,7 @@ app.title = "Election Statistics"
 server = app.server
 app.config.suppress_callback_exceptions = True
 
-# ------ DELETE EXAMPLE DATA
-# Path
-BASE_PATH = pathlib.Path(__file__).parent.resolve()
-DATA_PATH = BASE_PATH.joinpath("data").resolve()
-
-# Read data
-df = pd.read_csv(DATA_PATH.joinpath("clinical_analytics.csv.gz"))
-
-clinic_list = df["Clinic Name"].unique()
-df["Admit Source"] = df["Admit Source"].fillna("Not Identified")
-admit_list = df["Admit Source"].unique().tolist()
-
-# Date
-# Format checkin Time
-df["Check-In Time"] = df["Check-In Time"].apply(
-    lambda x: dt.strptime(x, "%Y-%m-%d %I:%M:%S %p")
-)  # String -> Datetime
-
-# Insert weekday and hour of checkin time
-df["Days of Wk"] = df["Check-In Hour"] = df["Check-In Time"]
-df["Days of Wk"] = df["Days of Wk"].apply(
-    lambda x: dt.strftime(x, "%A")
-)  # Datetime -> weekday string
-
-df["Check-In Hour"] = df["Check-In Hour"].apply(
-    lambda x: dt.strftime(x, "%I %p")
-)  # Datetime -> int(hour) + AM/PM
-
-day_list = [
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-    "Sunday",
-]
-
-# ------ DELETE EXAMPLE DATA
-
-# ------- API functions 
+# ------ API functions ------
 def get_results_by_county(sheet_number=2, year = 2016, month = 11, result_column="total_votes"): 
     """
     Uses api endpoint to get the total votes aggregated to the county level. 
@@ -109,10 +70,15 @@ def get_distribution(county_name="Fulton", year=2016, month=11, axis="age_grp", 
     return pd.read_json(response.text)
 
 
-# ------- Get data
+# ------ Get data from API ------
 results = get_results_by_county()
 counties = results['county_name']
 
+values = results['county_name']
+contests = results['county_name']
+years = ['2016']
+
+# ------ Statewide Election Results ------
 def state_results():
 	column_list = list(results)
 	column_list.remove("county_name")
@@ -129,6 +95,7 @@ def state_results():
     plot_bgcolor='rgba(0,0,0,0)')	
 	return fig
 
+# ------ Countywide Election Results ------
 def county_results(county):
 	column_list = list(results)
 	county_results = results[(results['county_name'] == county)]
@@ -147,7 +114,7 @@ def county_results(county):
 		plot_bgcolor='rgba(0,0,0,0)')
 	return fig
 
-
+# ------ Age histogram ------
 def age_histogram(county):
 	df = get_distribution(county)
 	fig = px.histogram(df, x="age_grp", y="voted")
@@ -159,6 +126,7 @@ def age_histogram(county):
     ),)
 	return fig
 
+# ------ Gender Histogram ------
 def gender_histogram(county):
 	df = get_distribution(county, 2016, 11, "gender", metric="voted")
 	fig = px.histogram(df, x="gender", y="voted")
@@ -170,6 +138,7 @@ def gender_histogram(county):
     ),)
 	return fig
 
+# ------ Race Histogram ------
 def race_histogram(county):
 	df = get_distribution(county, 2016, 11, "race", metric="voted")
 	fig = px.histogram(df, x="race", y="voted")
@@ -181,14 +150,15 @@ def race_histogram(county):
     ),)
 	return fig
 
+# ------ Create the HTML Div containing age, gender, and race graphs 
 def graphs(county):
 	"""
-	:return: A div containing graphs
+	:return: A div containing age, gender, and race graphs. Also builds the County Selector Dropdown menu
 	"""
 	return html.Div(
 		id="graph-section",
 		children=[
-			html.Div(id="county-select",children=[html.P("Select County"),
+			html.Div(id="county-select",children=[html.B("Select County"),
             dcc.Dropdown(
                 options=[{"label": i, "value": i} for i in counties],
                 value=counties[0],
@@ -200,6 +170,7 @@ def graphs(county):
 		],
 	)
 
+# ------ NOT CURRENTLY IN USE ------
 def description_card():
     """
     :return: A Div containing dashboard title & descriptions.
@@ -215,7 +186,7 @@ def description_card():
         ],
     )
 
-
+# ------ State Map Data control card: Contest, Year, Value dropdowns 
 def generate_control_card():
     """
     :return: A Div containing controls for graphs.
@@ -225,23 +196,23 @@ def generate_control_card():
         children=[
             html.P("Select Contest"),
             dcc.Dropdown(
-                id="clinic-select",
-                options=[{"label": i, "value": i} for i in clinic_list],
-                value=clinic_list[0],
+                id="contest-select",
+                options=[{"label": i, "value": i} for i in contests],
+                value=contests[0],
             ),
             html.Br(),
             html.P("Select Year"),
             dcc.Dropdown(
                 id="year-select",
-                options=[{"label": i, "value": i} for i in clinic_list],
-                value=clinic_list[0],
+                options=[{"label": i, "value": i} for i in years],
+                value=years[0],
             ),
             html.Br(),
             html.P("Select Value"),
             dcc.Dropdown(
                 id="value-select",
-                options=[{"label": i, "value": i} for i in clinic_list],
-                value=clinic_list[0],
+                options=[{"label": i, "value": i} for i in values],
+                value=values[0],
             ),
             html.Br(),
             html.Br(),
@@ -252,7 +223,7 @@ def generate_control_card():
         ],
     )
 
-
+# ------ Georgia Choropleth Map ------
 def generate_map(contest, year, value):
     """
     :param: start: start date from selection.
@@ -287,6 +258,7 @@ def generate_map(contest, year, value):
 
     return fig
 
+# ------ APPLICATION LAYOUT ------
 app.layout = html.Div(
     id="app-container",
     children=[
@@ -303,18 +275,17 @@ app.layout = html.Div(
             children=[generate_control_card()]
             + [
                 html.Div(
-                    ["initial child"], id="output-clientside", style={"display": "none"}
+                    ["initial child"], id="election-control", style={"display": "none"}
                 )
             ],
         ),
-        # Left column
+        # Left column (GA Map, state and county results graphs)
         html.Div(
             id="left-column",
             className="eight columns",
             children=[
-                # Patient Volume Heatmap
                 html.Div(
-                    id="patient_volume_card",
+                    id="state-graph",
                     children=[
 						html.Div(id="state-wide",children=dcc.Graph(figure=state_results()),),
 						html.Div(id="county-wide",children=dcc.Graph(figure=county_results('Appling')),),
@@ -323,7 +294,7 @@ app.layout = html.Div(
                 ),
             ],            
         ),
-		# Right column
+		# Right column (County select, age, gender, race graphs)
         html.Div(
             id="right-column",
             className="eight columns",
@@ -337,7 +308,7 @@ app.layout = html.Div(
     ],
 )
 
-
+# ------ I don't know what this is ------
 @app.callback(
     Output("patient_volume_hm", "figure"),
     [
@@ -351,8 +322,7 @@ app.layout = html.Div(
 )
 
 
-
-
+# ------ I don't know what this is ------
 def update_heatmap(start, end, clinic, hm_click, admit_type, reset_click):
     start = start + " 00:00:00"
     end = end + " 00:00:00"
@@ -372,7 +342,7 @@ def update_heatmap(start, end, clinic, hm_click, admit_type, reset_click):
     )
 
 
-# Run the server
+# ------ Run the server ------
 if __name__ == "__main__":
     app.run_server(debug=True)
 
