@@ -94,7 +94,7 @@ def state_results():
     ),paper_bgcolor='rgba(0,0,0,0)',
     plot_bgcolor='rgba(0,0,0,0)')	
 	return fig
-
+"""
 # ------ Countywide Election Results ------
 def county_results(county):
 	column_list = list(results)
@@ -149,7 +149,7 @@ def race_histogram(county):
         t=10
     ),)
 	return fig
-
+"""
 # ------ Create the HTML Div containing age, gender, and race graphs 
 def graphs(county):
 	"""
@@ -160,12 +160,13 @@ def graphs(county):
 		children=[
 			html.Div(id="county-select",children=[html.B("Select County"),
             dcc.Dropdown(
+                id="county-drop-select",
                 options=[{"label": i, "value": i} for i in counties],
                 value=counties[0],
             ),]),
-			dcc.Graph(figure=age_histogram(county)),
-			dcc.Graph(figure=gender_histogram(county)),
-			dcc.Graph(figure=race_histogram(county)),
+			dcc.Graph(id="age_histogram"),
+			dcc.Graph(id="gender_histogram"),
+			dcc.Graph(id="race_histogram"),
 	
 		],
 	)
@@ -288,7 +289,8 @@ app.layout = html.Div(
                     id="state-graph",
                     children=[
 						html.Div(id="state-wide",children=dcc.Graph(figure=state_results()),),
-						html.Div(id="county-wide",children=dcc.Graph(figure=county_results('Appling')),),
+                        #html.Div(id="county-wide",children=dcc.Graph(figure=county_results('Appling')),),
+                        html.Div(id="county-wide",children=dcc.Graph(id = 'county-bar'),),
                         dcc.Graph(figure=generate_map(0,0,0)),
                     ], 
                 ),
@@ -308,39 +310,71 @@ app.layout = html.Div(
     ],
 )
 
-# ------ I don't know what this is ------
-@app.callback(
-    Output("patient_volume_hm", "figure"),
+""" @app.callback(
+    Output("county-wide", "figure"),
     [
-        Input("date-picker-select", "start_date"),
-        Input("date-picker-select", "end_date"),
-        Input("clinic-select", "value"),
-        Input("patient_volume_hm", "clickData"),
-        Input("admit-select", "value"),
+        Input(component_id='county-select', component_property= 'value'),
+        Input("contest-select", "value"),
+        Input("year-select", "value"),
+        Input("value-select", "value"),
         Input("reset-btn", "n_clicks"),
     ],
+) """
+
+# ------ County Select call back
+@app.callback(
+    [Output("county-bar", "figure"), Output("age_histogram", "figure"), Output("gender_histogram", "figure"), Output("race_histogram", "figure")],
+    [Input('county-drop-select','value')],
 )
 
+def update_charts(dropdown_value):
+    print(dropdown_value)
+     # ------ Countywide Results ------
+    county_results = results[(results['county_name'] == dropdown_value)].iloc[: , 1:].T
+    county_results.reset_index(inplace=True)
+    county_results.columns = ["Candidate","Votes"]
 
-# ------ I don't know what this is ------
-def update_heatmap(start, end, clinic, hm_click, admit_type, reset_click):
-    start = start + " 00:00:00"
-    end = end + " 00:00:00"
+    countyBar = go.Figure(data=[go.Bar(x=county_results["Candidate"] ,y=county_results["Votes"])], 
+        layout=go.Layout(title=go.layout.Title(text="Countywide Results")))
 
-    reset = False
-    # Find which one has been triggered
-    ctx = dash.callback_context
+    countyBar.update_layout(autosize=True,width=300,height=250, margin=dict(
+			l=65,
+			r=50,
+			b=0,
+			t=30
+		), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
 
-    if ctx.triggered:
-        prop_id = ctx.triggered[0]["prop_id"].split(".")[0]
-        if prop_id == "reset-btn":
-            reset = True
+    # ------ Age histogram ------
+    countyData = get_distribution(dropdown_value)
+    ageHist = px.histogram(countyData, x="age_grp", y="voted")
+    ageHist.update_layout(autosize=True,width=350,height=230,margin=dict(
+        l=50,
+        r=50,
+        b=0,
+        t=10
+    ),)
 
-    # Return to original hm(no colored annotation) by resetting
-    return generate_patient_volume_heatmap(
-        start, end, clinic, hm_click, admit_type, reset
-    )
+    # ------ Gender Histogram ------
+    genderData = get_distribution(dropdown_value, 2016, 11, "gender", metric="voted")
+    genderBar = px.histogram(genderData, x="gender", y="voted")
+    genderBar.update_layout(autosize=True,width=350,height=190,margin=dict(
+        l=50,
+        r=50,
+        b=0,
+        t=10
+    ),)
 
+# ------ Race Histogram ------
+    raceData = get_distribution(dropdown_value, 2016, 11, "race", metric="voted")
+    raceHist = px.histogram(raceData, x="race", y="voted")
+    raceHist.update_layout(autosize=True,width=350,height=230,margin=dict(
+        l=50,
+        r=50,
+        b=10,
+        t=10
+    ),)
+    
+    return countyBar, ageHist, genderBar, raceHist
 
 # ------ Run the server ------
 if __name__ == "__main__":
