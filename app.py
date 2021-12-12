@@ -69,6 +69,7 @@ def get_distribution(county_name="Fulton", year=2016, month=11, axis="age_grp", 
     response = requests.get(invoke_url + "/get_distribution", params=params)
     return pd.read_json(response.text)
 
+# open /Applications/Python\ 3.7/Install\ Certificates.command
 
 # ------ Get data from API ------
 results = get_results_by_county()
@@ -77,6 +78,12 @@ counties = results['county_name']
 values = results['county_name']
 contests = results['county_name']
 years = ['2016']
+
+FIPS_df = pd.read_csv("https://raw.githubusercontent.com/fhossain75/georgia-election-map/main/data/georgiaFIPS.csv")
+countyResults = results
+countyResults['winner'] = countyResults[['DONALD J. TRUMP', 'GARY JOHNSON', 'HILLARY CLINTON']].idxmax(axis=1)
+countyResults.insert(0, "FIPS", FIPS_df["FIPS"])
+
 
 # ------ Statewide Election Results ------
 def state_results():
@@ -94,62 +101,7 @@ def state_results():
     ),paper_bgcolor='rgba(0,0,0,0)',
     plot_bgcolor='rgba(0,0,0,0)')	
 	return fig
-"""
-# ------ Countywide Election Results ------
-def county_results(county):
-	column_list = list(results)
-	county_results = results[(results['county_name'] == county)]
-	county_results = county_results.T
-	county_results.reset_index(inplace=True)
-	county_results = county_results.rename(columns = {'index':'Candidate'})
-	county_results = county_results.rename(columns = {0:'votes'})
-	county_results = county_results.drop([0])
-	fig = px.histogram(county_results, x="Candidate", y="votes",title="Countywide Results")
-	fig.update_layout(autosize=True,width=300,height=250,margin=dict(
-			l=65,
-			r=50,
-			b=0,
-			t=30
-		),paper_bgcolor='rgba(0,0,0,0)',
-		plot_bgcolor='rgba(0,0,0,0)')
-	return fig
 
-# ------ Age histogram ------
-def age_histogram(county):
-	df = get_distribution(county)
-	fig = px.histogram(df, x="age_grp", y="voted")
-	fig.update_layout(autosize=True,width=350,height=230,margin=dict(
-        l=50,
-        r=50,
-        b=0,
-        t=10
-    ),)
-	return fig
-
-# ------ Gender Histogram ------
-def gender_histogram(county):
-	df = get_distribution(county, 2016, 11, "gender", metric="voted")
-	fig = px.histogram(df, x="gender", y="voted")
-	fig.update_layout(autosize=True,width=350,height=190,margin=dict(
-        l=50,
-        r=50,
-        b=0,
-        t=10
-    ),)
-	return fig
-
-# ------ Race Histogram ------
-def race_histogram(county):
-	df = get_distribution(county, 2016, 11, "race", metric="voted")
-	fig = px.histogram(df, x="race", y="voted")
-	fig.update_layout(autosize=True,width=350,height=230,margin=dict(
-        l=50,
-        r=50,
-        b=10,
-        t=10
-    ),)
-	return fig
-"""
 # ------ Create the HTML Div containing age, gender, and race graphs 
 def graphs(county):
 	"""
@@ -234,26 +186,26 @@ def generate_map(contest, year, value):
     :return: Patient volume annotated heatmap.
     """
 ##
-    df_sample = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/minoritymajority.csv')
-    df_sample_r = df_sample[df_sample['STNAME'] == 'Georgia']
-
-    values = df_sample_r['TOT_POP'].tolist()
-    fips = df_sample_r['FIPS'].tolist()
-
-    endpts = list(np.mgrid[min(values):max(values):4j])
-    colorscale = ["#030512","#1d1d3b","#323268","#3d4b94","#3e6ab0",
-                "#4989bc","#60a7c7","#85c5d3","#b7e0e4","#eafcfd"]
+    countyName = countyResults["county_name"]
+    values = countyResults['winner'].tolist()
+    fips = countyResults['FIPS'].tolist()
+    colorscale = ["#DE0100", "#1405BD"]
+    #scope=['Georgia']
     fig = ff.create_choropleth(
-        fips=fips, values=values, scope=['Georgia'], show_state_data=True,
-        colorscale=colorscale, binning_endpoints=endpts, round_legend_values=True,
+        fips=fips, values=values, scope=['Georgia'], colorscale=colorscale,
+        
+        round_legend_values=True,
         plot_bgcolor='rgb(229,229,229)',
         paper_bgcolor='rgb(229,229,229)',
-        legend_title='Population by County',
+        legend_title='Majority Vote by County',
         county_outline={'color': 'rgb(255,255,255)', 'width': 0.5},
-        exponent_format=True,
+        exponent_format=True
     )
+
     fig.layout.template = None
     fig.update_layout(autosize=True,width=1000,height=500,)
+
+    
     
     ##
 
@@ -310,17 +262,6 @@ app.layout = html.Div(
     ],
 )
 
-""" @app.callback(
-    Output("county-wide", "figure"),
-    [
-        Input(component_id='county-select', component_property= 'value'),
-        Input("contest-select", "value"),
-        Input("year-select", "value"),
-        Input("value-select", "value"),
-        Input("reset-btn", "n_clicks"),
-    ],
-) """
-
 # ------ County Select call back
 @app.callback(
     [Output("county-bar", "figure"), Output("age_histogram", "figure"), Output("gender_histogram", "figure"), Output("race_histogram", "figure")],
@@ -333,10 +274,10 @@ def update_charts(dropdown_value):
     county_results = results[(results['county_name'] == dropdown_value)].iloc[: , 1:].T
     county_results.reset_index(inplace=True)
     county_results.columns = ["Candidate","Votes"]
-
+    
     countyBar = go.Figure(data=[go.Bar(x=county_results["Candidate"] ,y=county_results["Votes"])], 
         layout=go.Layout(title=go.layout.Title(text="Countywide Results")))
-
+    
     countyBar.update_layout(autosize=True,width=300,height=250, margin=dict(
 			l=65,
 			r=50,
