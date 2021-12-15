@@ -2,7 +2,7 @@
 
 ## About this app
 
-This dashboard allows you to axplore Georgia election results by contest, year, and value. Click on the heatmap to visualize turnout in different counties.
+This dashboard allows you to axplore Georgia election results by contest, year, and value. Click on the drop down menu to visualize different turnout in different counties.
 
 ## Requirements
 
